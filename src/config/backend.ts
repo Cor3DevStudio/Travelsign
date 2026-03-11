@@ -23,8 +23,10 @@ const BACKEND_URL =
 
 export const BACKEND_CONFIG = {
   BASE_URL: BACKEND_URL,
-  // Timeout for API requests (30 seconds)
+  // Timeout for translate/other API requests (30 seconds)
   TIMEOUT_MS: 30000,
+  // OCR uses image + Gemini vision and can be slow; use longer timeout (90 seconds)
+  OCR_TIMEOUT_MS: 90000,
 } as const;
 
 

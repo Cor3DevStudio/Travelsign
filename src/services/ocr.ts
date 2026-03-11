@@ -1,6 +1,6 @@
 import { BACKEND_CONFIG } from '../config/backend';
 
-const { BASE_URL, TIMEOUT_MS } = BACKEND_CONFIG;
+const { BASE_URL, OCR_TIMEOUT_MS } = BACKEND_CONFIG;
 
 type CropRect = {
   x: number;
@@ -14,7 +14,7 @@ export async function extractTextFromImage(
   cropRect: CropRect
 ): Promise<string> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), OCR_TIMEOUT_MS);
 
   try {
     // Clean the base64 string - remove data URI prefix if present

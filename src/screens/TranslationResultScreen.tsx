@@ -70,7 +70,7 @@ export const TranslationResultScreen: React.FC<TranslationResultScreenProps> = (
     setIsSaving(true);
     const result = await addToSaved(
       originalText ?? '',
-      currentTranslation || translatedText ?? ''
+      (currentTranslation || translatedText) ?? ''
     );
     setIsSaving(false);
     if (result) {

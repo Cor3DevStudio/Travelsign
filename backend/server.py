@@ -7,9 +7,10 @@ import google.generativeai as genai
 import requests
 
 try:
-  # Load variables from a local .env file if present
+  # Load .env from backend folder first (so env is always loaded regardless of cwd)
   from dotenv import load_dotenv  # type: ignore
-  load_dotenv()
+  _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+  load_dotenv(_env_path)
 except Exception:
   # If python-dotenv isn't installed, we just rely on real env vars
   pass

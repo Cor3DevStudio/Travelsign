@@ -20,7 +20,7 @@ const SAMPLE_PLACES: POI[] = [
     id: '1',
     name: 'Asakusa Temple',
     category: 'Religious Site',
-    description: 'One of Tokyo's most famous temples, featuring the iconic Kaminarimon gate and a lively shopping street.',
+    description: "One of Tokyo's most famous temples, featuring the iconic Kaminarimon gate and a lively shopping street.",
     rating: '4.8',
     distance: '0.4 km',
     image: 'https://images.unsplash.com/photo-1570521462033-3015e76e7432?w=400&q=80',
