@@ -9,12 +9,36 @@ import logging
 
 from flask import Flask, jsonify, request
 
+# Load .env from backend directory (same folder as this script)
+_backend_dir = os.path.dirname(os.path.abspath(__file__))
+_env_path = os.path.normpath(os.path.join(_backend_dir, ".env"))
+
 try:
   from dotenv import load_dotenv
-  _env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
-  load_dotenv(_env_path)
-except Exception:
+  load_dotenv(dotenv_path=_env_path, override=True)
+  if not os.getenv("GEMINI_API_KEY"):
+    load_dotenv(dotenv_path=os.path.normpath(os.path.join(os.getcwd(), ".env")), override=True)
+  if not os.getenv("GEMINI_API_KEY"):
+    _cwd_backend_env = os.path.normpath(os.path.join(os.getcwd(), "backend", ".env"))
+    if os.path.isfile(_cwd_backend_env):
+      load_dotenv(dotenv_path=_cwd_backend_env, override=True)
+except ImportError:
   pass
+
+# Fallback: if key still missing but .env exists, read it manually (handles BOM/encoding)
+if not os.getenv("GEMINI_API_KEY") and os.path.isfile(_env_path):
+  try:
+    with open(_env_path, "r", encoding="utf-8-sig") as f:
+      for line in f:
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+          k, _, v = line.partition("=")
+          k, v = k.strip(), v.strip().strip('"').strip("'")
+          if k == "GEMINI_API_KEY" and v:
+            os.environ["GEMINI_API_KEY"] = v
+            break
+  except Exception:
+    pass
 
 # -----------------------------------------------------------------------------
 # Config (env only; never log or return these)
@@ -25,7 +49,12 @@ ALLOWED_ORIGIN = os.getenv("ALLOWED_ORIGIN", "*")  # Set to your app origin in p
 MAX_BODY_MB = int(os.getenv("MAX_BODY_MB", "15"))
 
 if not GEMINI_API_KEY:
-  raise RuntimeError("GEMINI_API_KEY env var is required")
+  _env_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+  raise RuntimeError(
+    "GEMINI_API_KEY env var is required. "
+    "Add it to backend/.env (e.g. GEMINI_API_KEY=your_key). "
+    "Expected .env at: %s (exists: %s)" % (_env_file, os.path.isfile(_env_file))
+  )
 
 import google.generativeai as genai
 import requests
@@ -243,6 +272,35 @@ def ocr():
     elif image_bytes[:6] in (b"GIF87a", b"GIF89a"):
       mime_type = "image/gif"
 
+  # Normalize image for OCR: apply EXIF orientation (critical for Android camera), resize if needed, re-encode as JPEG.
+  # Android (and some iOS) cameras often send JPEGs with EXIF rotation; raw bytes are not rotated, so OCR would see wrong orientation.
+  try:
+    from PIL import Image, ImageOps
+    import io
+    img = Image.open(io.BytesIO(image_bytes))
+    # Apply EXIF orientation so image is in correct display rotation (fixes Android/iOS camera orientation)
+    try:
+      img = ImageOps.exif_transpose(img)
+    except Exception:
+      pass
+    w, h = img.size
+    max_side = 2048
+    max_bytes = 2 * 1024 * 1024
+    if w > max_side or h > max_side or len(image_bytes) > max_bytes:
+      ratio = min(max_side / w, max_side / h, 1.0)
+      if ratio < 1.0:
+        nw, nh = int(w * ratio), int(h * ratio)
+        img = img.resize((nw, nh), Image.Resampling.LANCZOS)
+    if img.mode in ("RGBA", "P"):
+      img = img.convert("RGB")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG", quality=85, optimize=True)
+    image_bytes = buf.getvalue()
+    mime_type = "image/jpeg"
+    log.info("OCR: normalized image to %sx%s, %s bytes", img.width, img.height, len(image_bytes))
+  except Exception as norm_err:
+    log.warning("OCR: image normalize failed, using original: %s", norm_err)
+
   hint = ""
   if isinstance(crop_rect, dict) and all(k in crop_rect for k in ("x", "y", "width", "height")):
     try:
@@ -267,6 +325,14 @@ def ocr():
     text = (resp.text or "").strip()
     return jsonify({"text": text})
   except Exception as e:
+    err_msg = str(e).lower()
+    log.error("OCR Gemini error: %s", e, exc_info=True)
+    if "size" in err_msg or "dimension" in err_msg or "3072" in err_msg or "resolution" in err_msg:
+      return jsonify({"error": "Image is too large. Try a smaller or lower-quality photo."}), 413
+    if "blocked" in err_msg or "policy" in err_msg or "safe" in err_msg:
+      return jsonify({"error": "Image could not be processed. Try a different photo."}), 400
+    if "quota" in err_msg or "limit" in err_msg or "429" in err_msg:
+      return jsonify({"error": "Service is busy. Please try again in a moment."}), 503
     return _server_error("OCR processing failed. Please try again.", e, "ocr")
 
 

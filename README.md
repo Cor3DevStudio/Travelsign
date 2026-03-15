@@ -300,6 +300,11 @@ npm run web
 3. ✅ Check backend terminal for error messages
 4. ✅ Verify GEMINI_API_KEY is correct and has quota remaining
 
+**Android users:** The app works on both Android and iOS. If OCR fails on Android:
+- Ensure your phone and the computer running the backend are on the **same Wi‑Fi** (not mobile data).
+- Set `EXPO_PUBLIC_BACKEND_URL` (or the URL in `src/config/backend.ts`) to your computer’s LAN IP (e.g. `http://192.168.x.x:5000`), not `localhost`.
+- The backend normalizes camera images (including EXIF orientation from Android cameras) before OCR.
+
 ### Problem: "IP address keeps changing"
 
 **Solution:**

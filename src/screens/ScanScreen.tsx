@@ -133,9 +133,9 @@ export const ScanScreen: React.FC<ScanScreenProps> = ({ onNavigate }) => {
     try {
       setIsCapturing(true);
       console.log('ScanScreen: Taking picture...');
-      // On Android, base64 is sometimes not returned; use skipProcessing: false for reliability
+      // On Android use lower quality and skipProcessing: false so OCR payload stays within API limits
       const photo = await cameraRef.current.takePictureAsync({
-        quality: Platform.OS === 'android' ? 0.6 : 0.8,
+        quality: Platform.OS === 'android' ? 0.5 : 0.8,
         base64: true,
         skipProcessing: false,
       } as any);

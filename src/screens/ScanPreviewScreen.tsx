@@ -8,6 +8,7 @@ import {
   TouchableWithoutFeedback,
   GestureResponderEvent,
   Alert,
+  Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme';
@@ -103,8 +104,11 @@ export const ScanPreviewScreen: React.FC<ScanPreviewScreenProps> = ({
       });
     } catch (err: any) {
       console.error('OCR/translate failed', err);
-      const errorMessage =
+      let errorMessage =
         err?.message || 'OCR failed. Try scanning again or check your connection.';
+      if (Platform.OS === 'android' && (errorMessage.includes('connection') || errorMessage.includes('timeout') || errorMessage.includes('fetch'))) {
+        errorMessage += ' On Android, ensure your device and the computer running the backend are on the same Wi‑Fi and the app is configured with that computer\'s IP.';
+      }
       Alert.alert('OCR Error', errorMessage, [{ text: 'OK' }]);
       onNavigate('/translation-result', {
         originalText: '',
