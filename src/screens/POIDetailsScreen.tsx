@@ -29,22 +29,32 @@ type POI = {
 type POIDetailsScreenProps = {
   onNavigate: (route: string, params?: Record<string, any>) => void;
   poi: POI;
+  /** '/dashboard' from suggested; '/poi-list' when opened from list */
+  detailsReturnRoute?: string;
+  detailsReturnParams?: Record<string, any>;
 };
 
 const PLACEHOLDER_IMAGES: Record<string, string> = {
   market: 'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=600&q=80',
-  temple: 'https://images.unsplash.com/photo-1570521462033-3015e76e7432?w=600&q=80',
+  temple: 'https://images.unsplash.com/photo-1548625149-fc4a29cf7092?w=600&q=80',
   park: 'https://images.unsplash.com/photo-1519904981063-b0cf448d479e?w=600&q=80',
   historical: 'https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?w=600&q=80',
   viewpoint: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=600&q=80',
-  default: 'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=600&q=80',
+  landmark: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=600&q=80',
+  plaza: 'https://images.unsplash.com/photo-1564399579883-451fcd5ca7cc?w=600&q=80',
+  government: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&q=80',
+  default: 'https://images.unsplash.com/photo-1514565131-fce0801e5785?w=600&q=80',
 };
 
 function getPlaceholderImage(poi: POI): string {
   if (poi.image) return poi.image;
   const cat = (poi.category || '').toLowerCase();
+  const name = (poi.name || '').toLowerCase();
+  if (name.includes('plaza') || name.includes('square')) return PLACEHOLDER_IMAGES.plaza;
+  if (cat.includes('landmark')) return PLACEHOLDER_IMAGES.landmark;
+  if (cat.includes('government') || name.includes('capitol')) return PLACEHOLDER_IMAGES.government;
   for (const key of Object.keys(PLACEHOLDER_IMAGES)) {
-    if (cat.includes(key)) return PLACEHOLDER_IMAGES[key];
+    if (cat.includes(key)) return PLACEHOLDER_IMAGES[key as keyof typeof PLACEHOLDER_IMAGES];
   }
   return PLACEHOLDER_IMAGES.default;
 }
@@ -53,10 +63,11 @@ function openMapsNavigation(poi: POI) {
   let url: string;
 
   if (typeof poi.lat === 'number' && typeof poi.lng === 'number') {
-    url = Platform.select({
-      ios: `maps://app?daddr=${poi.lat},${poi.lng}&dirflg=d`,
-      android: `google.navigation:q=${poi.lat},${poi.lng}`,
-    }) ?? `https://www.google.com/maps/dir/?api=1&destination=${poi.lat},${poi.lng}`;
+    url =
+      Platform.select({
+        ios: `maps://app?daddr=${poi.lat},${poi.lng}&dirflg=d`,
+        android: `google.navigation:q=${poi.lat},${poi.lng}`,
+      }) ?? `https://www.google.com/maps/dir/?api=1&destination=${poi.lat},${poi.lng}`;
   } else if (poi.address) {
     const encoded = encodeURIComponent(poi.address);
     url = `https://www.google.com/maps/search/?api=1&query=${encoded}`;
@@ -74,15 +85,33 @@ function openMapsNavigation(poi: POI) {
 export const POIDetailsScreen: React.FC<POIDetailsScreenProps> = ({
   onNavigate,
   poi,
+  detailsReturnRoute,
+  detailsReturnParams,
 }) => {
   const { theme: activeTheme } = useTheme();
+
+  const handleBack = () => {
+    if (detailsReturnRoute === '/dashboard') {
+      onNavigate('/dashboard');
+      return;
+    }
+    if (detailsReturnRoute === '/poi-list' && detailsReturnParams) {
+      onNavigate('/poi-list', {
+        ...detailsReturnParams,
+        location: detailsReturnParams.location,
+      });
+      return;
+    }
+    onNavigate('/dashboard');
+  };
+
   if (!poi) {
     return (
       <View style={[styles.container, { backgroundColor: activeTheme.colors.background }]}>
         <View style={styles.header}>
           <TouchableOpacity
             style={[styles.backButton, { backgroundColor: activeTheme.colors.backgroundLight }]}
-            onPress={() => onNavigate('/poi-list')}
+            onPress={handleBack}
           >
             <Feather name="arrow-left" size={24} color={activeTheme.colors.textPrimary} />
           </TouchableOpacity>
@@ -102,24 +131,15 @@ export const POIDetailsScreen: React.FC<POIDetailsScreenProps> = ({
 
   return (
     <View style={[styles.container, { backgroundColor: activeTheme.colors.background }]}>
-      {/* Header overlaid on image */}
       <View style={styles.imageWrapper}>
-        <Image
-          source={{ uri: imageUrl }}
-          style={styles.heroImage}
-          resizeMode="cover"
-        />
+        <Image source={{ uri: imageUrl }} style={styles.heroImage} resizeMode="cover" />
         <View style={styles.imageDim} />
         <View style={styles.headerOverlay}>
-          <TouchableOpacity
-            style={styles.backButtonOverlay}
-            onPress={() => onNavigate('/poi-list')}
-          >
+          <TouchableOpacity style={styles.backButtonOverlay} onPress={handleBack}>
             <Feather name="arrow-left" size={22} color="#FFFFFF" />
           </TouchableOpacity>
           <View style={styles.headerRight} />
         </View>
-        {/* Place name on image */}
         <View style={styles.imageCaption}>
           {poi.category && (
             <View style={styles.categoryBadge}>
@@ -130,9 +150,7 @@ export const POIDetailsScreen: React.FC<POIDetailsScreenProps> = ({
           {poi.distanceMeters != null && (
             <View style={styles.distanceRow}>
               <Feather name="map-pin" size={13} color="rgba(255,255,255,0.8)" />
-              <Text style={styles.distanceText}>
-                {(poi.distanceMeters / 1000).toFixed(1)} km away
-              </Text>
+              <Text style={styles.distanceText}>{(poi.distanceMeters / 1000).toFixed(1)} km away</Text>
             </View>
           )}
         </View>
@@ -143,7 +161,6 @@ export const POIDetailsScreen: React.FC<POIDetailsScreenProps> = ({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Rating */}
         {poi.rating && (
           <View style={styles.ratingRow}>
             {[1, 2, 3, 4, 5].map((star) => (
@@ -162,7 +179,6 @@ export const POIDetailsScreen: React.FC<POIDetailsScreenProps> = ({
           </View>
         )}
 
-        {/* Address */}
         {poi.address && (
           <View style={styles.infoRow}>
             <View style={[styles.infoIcon, { backgroundColor: activeTheme.colors.backgroundLight }]}>
@@ -172,16 +188,13 @@ export const POIDetailsScreen: React.FC<POIDetailsScreenProps> = ({
           </View>
         )}
 
-        {/* Overview */}
         <Text style={[styles.sectionTitle, { color: activeTheme.colors.textPrimary }]}>Overview</Text>
         <Text style={[styles.description, { color: activeTheme.colors.textSecondary }]}>
           {poi.description ||
             `${poi.name} is a ${poi.category?.toLowerCase() || 'notable'} destination worth visiting. ` +
-            `Explore the local area to discover what makes this place unique. ` +
-            `Connect to a live places API for detailed information.`}
+              `Explore the local area to discover what makes this place unique.`}
         </Text>
 
-        {/* Coordinates */}
         {typeof poi.lat === 'number' && typeof poi.lng === 'number' && (
           <View style={styles.coordsRow}>
             <Feather name="navigation" size={13} color={activeTheme.colors.muted} />
@@ -192,11 +205,24 @@ export const POIDetailsScreen: React.FC<POIDetailsScreenProps> = ({
         )}
       </ScrollView>
 
-      {/* Action buttons */}
-      <View style={styles.actionsRow}>
+      <View
+        style={[
+          styles.actionsRow,
+          {
+            backgroundColor: activeTheme.colors.background,
+            borderTopColor: activeTheme.colors.border,
+          },
+        ]}
+      >
         <TouchableOpacity
-          style={[styles.secondaryButton, { backgroundColor: activeTheme.colors.card, borderColor: activeTheme.colors.border }]}
-          onPress={() => onNavigate('/translation-result')}
+          style={[
+            styles.secondaryButton,
+            {
+              backgroundColor: activeTheme.colors.card,
+              borderColor: activeTheme.colors.border,
+            },
+          ]}
+          onPress={() => onNavigate('/dashboard')}
         >
           <Feather name="message-circle" size={18} color={activeTheme.colors.textPrimary} />
           <Text style={[styles.secondaryButtonText, { color: activeTheme.colors.textPrimary }]}>Translation</Text>
@@ -331,7 +357,6 @@ const styles = StyleSheet.create({
   ratingValue: {
     fontFamily: theme.typography.semibold,
     fontSize: 14,
-    color: theme.colors.textSecondary,
     marginLeft: 4,
   },
   infoRow: {
@@ -344,7 +369,6 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 10,
-    backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -352,20 +376,17 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: theme.typography.regular,
     fontSize: 14,
-    color: theme.colors.textSecondary,
     lineHeight: 20,
     paddingTop: 6,
   },
   sectionTitle: {
     fontFamily: theme.typography.semibold,
     fontSize: 17,
-    color: theme.colors.textPrimary,
     marginBottom: theme.spacing.sm,
   },
   description: {
     fontFamily: theme.typography.regular,
     fontSize: 14,
-    color: theme.colors.textSecondary,
     lineHeight: 22,
     marginBottom: theme.spacing.md,
   },
@@ -378,7 +399,6 @@ const styles = StyleSheet.create({
   coordsText: {
     fontFamily: theme.typography.regular,
     fontSize: 11,
-    color: theme.colors.muted,
   },
   actionsRow: {
     flexDirection: 'row',
@@ -386,19 +406,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: theme.spacing.lg,
     paddingVertical: theme.spacing.md,
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
-    backgroundColor: theme.colors.background,
   },
   primaryButton: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.primary,
     borderRadius: theme.shapes.buttonRadius,
     paddingVertical: theme.spacing.md,
     gap: theme.spacing.xs,
-    ...theme.shadow.button,
   },
   primaryButtonText: {
     fontFamily: theme.typography.semibold,
@@ -413,14 +429,11 @@ const styles = StyleSheet.create({
     borderRadius: theme.shapes.buttonRadius,
     paddingVertical: theme.spacing.md,
     borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.backgroundLight,
     gap: theme.spacing.xs,
   },
   secondaryButtonText: {
     fontFamily: theme.typography.medium,
     fontSize: 16,
-    color: theme.colors.textPrimary,
   },
   errorContainer: {
     flex: 1,
@@ -432,11 +445,9 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontFamily: theme.typography.semibold,
     fontSize: 18,
-    color: theme.colors.textPrimary,
   },
   errorText: {
     fontFamily: theme.typography.regular,
     fontSize: 14,
-    color: theme.colors.textSecondary,
   },
 });

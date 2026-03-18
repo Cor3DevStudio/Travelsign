@@ -18,8 +18,9 @@
  * - The IP should match the network you're connected to (LAN or WiFi)
  */
 
-const BACKEND_URL = 
-  process.env.EXPO_PUBLIC_BACKEND_URL ?? 'http://192.168.100.3:5000';
+// Same PC: use localhost. Phone/other device: set EXPO_PUBLIC_BACKEND_URL in root .env to this PC's IP (e.g. http://192.168.1.100:5000)
+const BACKEND_URL =
+  process.env.EXPO_PUBLIC_BACKEND_URL ?? 'http://localhost:5000';
 
 export const BACKEND_CONFIG = {
   BASE_URL: BACKEND_URL,

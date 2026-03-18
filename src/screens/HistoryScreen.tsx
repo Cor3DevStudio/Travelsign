@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme';
@@ -244,18 +245,29 @@ export const HistoryScreen: React.FC<HistoryScreenProps> = ({
                 onNavigate('/translation-result', {
                   originalText: item.originalText,
                   translatedText: item.translatedText,
+                  capturedImageUri: item.capturedImageStorageUri,
+                  translationEntry: 'library',
+                  initialLanguage: 'en',
                 })
               }
               onLongPress={() => handleRemoveItem(item)}
               activeOpacity={0.7}
             >
-              <View style={[styles.iconContainer, { backgroundColor: activeTheme.colors.cardLight }]}>
-                <Feather
-                  name={activeTab === 'history' ? 'clock' : 'bookmark'}
-                  size={17}
-                  color={activeTheme.colors.primary}
+              {item.capturedImageStorageUri ? (
+                <Image
+                  source={{ uri: item.capturedImageStorageUri }}
+                  style={styles.thumb}
+                  resizeMode="cover"
                 />
-              </View>
+              ) : (
+                <View style={[styles.iconContainer, { backgroundColor: activeTheme.colors.cardLight }]}>
+                  <Feather
+                    name={activeTab === 'history' ? 'clock' : 'bookmark'}
+                    size={17}
+                    color={activeTheme.colors.primary}
+                  />
+                </View>
+              )}
               <View style={styles.textContainer}>
                 <Text style={[styles.primaryText, { color: activeTheme.colors.textPrimary }]} numberOfLines={1}>
                   {item.translatedText || '—'}
@@ -425,10 +437,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: theme.spacing.md,
   },
+  thumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    marginRight: theme.spacing.md,
+    backgroundColor: theme.colors.backgroundLight,
+  },
   iconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 48,
+    height: 48,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#EFF6FF',

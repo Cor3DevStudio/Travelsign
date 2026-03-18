@@ -24,6 +24,10 @@ type POIListScreenProps = {
     lat: number;
     lng: number;
   };
+  returnToTranslationParams?: Record<string, unknown>;
+  listReturnRoute?: string;
+  /** Dashboard "Suggested places" browse — do not replace list with nearby API */
+  browseSuggested?: boolean;
 };
 
 export const POIListScreen: React.FC<POIListScreenProps> = ({
@@ -31,6 +35,9 @@ export const POIListScreen: React.FC<POIListScreenProps> = ({
   pois,
   searchQuery,
   captureLocation,
+  returnToTranslationParams,
+  listReturnRoute,
+  browseSuggested = false,
 }) => {
   const { theme: activeTheme } = useTheme();
   const [effectiveLocation, setEffectiveLocation] = useState(captureLocation ?? null);
@@ -49,9 +56,8 @@ export const POIListScreen: React.FC<POIListScreenProps> = ({
     })();
   }, [captureLocation, effectiveLocation]);
 
-  // When we have a location, fetch real nearby markets within ~250m radius.
   useEffect(() => {
-    if (!effectiveLocation) return;
+    if (!effectiveLocation || browseSuggested) return;
 
     (async () => {
       try {
@@ -61,7 +67,6 @@ export const POIListScreen: React.FC<POIListScreenProps> = ({
           effectiveLocation.lng,
           5000
         );
-        // Map API places to POI shape
         const mapped: POI[] = places.map((p, idx) => ({
           id: p.id || String(idx),
           name: p.name,
@@ -76,7 +81,7 @@ export const POIListScreen: React.FC<POIListScreenProps> = ({
         setLoadingNearby(false);
       }
     })();
-  }, [effectiveLocation]);
+  }, [effectiveLocation, browseSuggested]);
   const data =
     nearbyPois && nearbyPois.length > 0
       ? nearbyPois
@@ -88,8 +93,29 @@ export const POIListScreen: React.FC<POIListScreenProps> = ({
           },
         ];
 
-  const handlePressPOI = (poi: POI) => {
-    onNavigate('/poi-details', { poi });
+  const listSnapshotParams = () => ({
+    pois: browseSuggested ? pois : nearbyPois.length ? nearbyPois : pois,
+    location: effectiveLocation,
+    searchQuery,
+    returnToTranslationParams,
+    listReturnRoute,
+    browseSuggested,
+  });
+
+  const handlePressPOI = (item: POI) => {
+    onNavigate('/poi-details', {
+      poi: item,
+      detailsReturnRoute: '/poi-list',
+      detailsReturnParams: listSnapshotParams(),
+    });
+  };
+
+  const handleListBack = () => {
+    if (returnToTranslationParams) {
+      onNavigate('/translation-result', returnToTranslationParams as any);
+    } else {
+      onNavigate(listReturnRoute || '/dashboard');
+    }
   };
 
   return (
@@ -97,7 +123,7 @@ export const POIListScreen: React.FC<POIListScreenProps> = ({
       <View style={styles.header}>
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: activeTheme.colors.backgroundLight }]}
-          onPress={() => onNavigate('/translation-result')}
+          onPress={handleListBack}
         >
           <Feather name="arrow-left" size={24} color={activeTheme.colors.textPrimary} />
         </TouchableOpacity>

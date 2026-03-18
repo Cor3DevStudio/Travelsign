@@ -17,51 +17,67 @@ type POI = {
   lng?: number;
 };
 
+/** Sample places — images match category (plaza, church, capitol, etc.), not generic resort photos */
 const SAMPLE_PLACES: POI[] = [
   {
     id: '1',
     name: 'Balanga City Plaza',
     category: 'Landmark',
-    description: 'The heart of Balanga City with a fountain, gardens, and events. A great starting point for exploring the capital of Bataan.',
+    description:
+      'The heart of Balanga City with a fountain, gardens, and events. A great starting point for exploring the capital of Bataan.',
     rating: '4.6',
     distance: '—',
-    image: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400&q=80',
+    image: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=600&q=80',
+    lat: 14.6764,
+    lng: 120.5361,
   },
   {
     id: '2',
     name: 'Balanga Cathedral',
     category: 'Religious Site',
-    description: 'Diocesan Shrine of the Divine Mercy. A notable church and pilgrimage site in Bataan.',
+    description:
+      'Diocesan Shrine of the Divine Mercy. A notable church and pilgrimage site in Bataan.',
     rating: '4.7',
     distance: '—',
-    image: 'https://images.unsplash.com/photo-1570521462033-3015e76e7432?w=400&q=80',
+    image: 'https://images.unsplash.com/photo-1548625149-fc4a29cf7092?w=600&q=80',
+    lat: 14.6759,
+    lng: 120.5354,
   },
   {
     id: '3',
     name: 'Bataan Capitol Complex',
     category: 'Government',
-    description: 'Provincial capitol and park in Balanga. Green spaces and government buildings in the capital.',
+    description:
+      'Provincial capitol and park in Balanga. Green spaces and government buildings in the capital.',
     rating: '4.4',
     distance: '—',
-    image: 'https://images.unsplash.com/photo-1519904981063-b0cf448d479e?w=400&q=80',
+    image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=600&q=80',
+    lat: 14.6772,
+    lng: 120.537,
   },
   {
     id: '4',
     name: 'Pilar-Balanga Road Scenic Stretch',
     category: 'Viewpoint',
-    description: 'Scenic road between Pilar and Balanga with views of the countryside and Mount Samat in the distance.',
+    description:
+      'Scenic road between Pilar and Balanga with views of the countryside and Mount Samat in the distance.',
     rating: '4.5',
     distance: '—',
-    image: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=400&q=80',
+    image: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=600&q=80',
+    lat: 14.65,
+    lng: 120.52,
   },
   {
     id: '5',
     name: 'Balanga Public Market',
     category: 'Market',
-    description: 'Local market for fresh produce, snacks, and souvenirs. Experience everyday Balanga and Bataan flavors.',
+    description:
+      'Local market for fresh produce, snacks, and souvenirs. Experience everyday Balanga and Bataan flavors.',
     rating: '4.3',
     distance: '—',
-    image: 'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=400&q=80',
+    image: 'https://images.unsplash.com/photo-1555529669-e69e7aa0ba9a?w=600&q=80',
+    lat: 14.6778,
+    lng: 120.5345,
   },
 ];
 
@@ -82,18 +98,29 @@ function uniqueById<T extends { id: string }>(items: T[]): T[] {
 export function SuggestedPOI({ onNavigate, pois }: SuggestedPOIProps) {
   const { t } = useLanguage();
   const { theme: activeTheme } = useTheme();
-  const raw = (pois && pois.length > 0) ? pois : SAMPLE_PLACES;
+  const raw = pois && pois.length > 0 ? pois : SAMPLE_PLACES;
   const displayPois = uniqueById(raw);
 
   const handlePOIClick = (poi: POI) => {
-    onNavigate?.('/poi-details', { poi });
+    onNavigate?.('/poi-details', {
+      poi: { ...poi, image: poi.image },
+      detailsReturnRoute: '/dashboard',
+    });
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: activeTheme.colors.textPrimary }]}>{t.suggestedPlaces}</Text>
-        <TouchableOpacity onPress={() => onNavigate?.('/poi-list', { pois: displayPois })}>
+        <TouchableOpacity
+          onPress={() =>
+            onNavigate?.('/poi-list', {
+              pois: displayPois,
+              listReturnRoute: '/dashboard',
+              browseSuggested: true,
+            })
+          }
+        >
           <Text style={[styles.seeAll, { color: activeTheme.colors.primary }]}>{t.seeAll}</Text>
         </TouchableOpacity>
       </View>
@@ -106,16 +133,15 @@ export function SuggestedPOI({ onNavigate, pois }: SuggestedPOIProps) {
         {displayPois.map((poi) => (
           <TouchableOpacity
             key={poi.id}
-            style={[styles.poiCard, { backgroundColor: activeTheme.colors.card, borderColor: activeTheme.colors.border }]}
+            style={[
+              styles.poiCard,
+              { backgroundColor: activeTheme.colors.card, borderColor: activeTheme.colors.border },
+            ]}
             onPress={() => handlePOIClick(poi)}
             activeOpacity={0.85}
           >
             <View style={styles.imageContainer}>
-              <Image
-                source={{ uri: poi.image }}
-                style={styles.image}
-                resizeMode="cover"
-              />
+              <Image source={{ uri: poi.image }} style={styles.image} resizeMode="cover" />
               <View style={styles.imageOverlay} />
               <View style={styles.categoryBadge}>
                 <Text style={styles.categoryBadgeText}>{poi.category}</Text>
@@ -126,7 +152,10 @@ export function SuggestedPOI({ onNavigate, pois }: SuggestedPOIProps) {
               <Text style={[styles.poiName, { color: activeTheme.colors.textPrimary }]} numberOfLines={1}>
                 {poi.name}
               </Text>
-              <Text style={[styles.poiDescription, { color: activeTheme.colors.textSecondary }]} numberOfLines={2}>
+              <Text
+                style={[styles.poiDescription, { color: activeTheme.colors.textSecondary }]}
+                numberOfLines={2}
+              >
                 {poi.description}
               </Text>
               <View style={styles.footer}>
@@ -193,7 +222,7 @@ const styles = StyleSheet.create({
   },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    background: 'transparent',
+    backgroundColor: 'transparent',
   },
   categoryBadge: {
     position: 'absolute',
@@ -236,7 +265,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
-    backgroundColor: '#FFF7ED',
     paddingHorizontal: 7,
     paddingVertical: 3,
     borderRadius: 10,
@@ -244,7 +272,6 @@ const styles = StyleSheet.create({
   rating: {
     fontFamily: theme.typography.bold,
     fontSize: 12,
-    color: '#92400E',
   },
   distanceContainer: {
     flexDirection: 'row',

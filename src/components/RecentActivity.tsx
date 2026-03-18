@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { theme } from '../theme';
 import { useLanguage } from '../contexts/LanguageContext';
@@ -41,6 +41,9 @@ export function RecentActivity({ onNavigate }: RecentActivityProps) {
     onNavigate?.('/translation-result', {
       originalText: item.originalText,
       translatedText: item.translatedText,
+      capturedImageUri: item.capturedImageStorageUri,
+      translationEntry: 'library',
+      initialLanguage: 'en',
     });
   };
 
@@ -72,9 +75,17 @@ export function RecentActivity({ onNavigate }: RecentActivityProps) {
               activeOpacity={0.8}
               onPress={() => handlePress(item)}
             >
-              <View style={[styles.iconContainer, { borderColor: activeTheme.colors.primary + '30' }]}>
-                <Feather name="globe" size={18} color={activeTheme.colors.primary} />
-              </View>
+              {item.capturedImageStorageUri ? (
+                <Image
+                  source={{ uri: item.capturedImageStorageUri }}
+                  style={styles.thumb}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={[styles.iconContainer, { borderColor: activeTheme.colors.primary + '30' }]}>
+                  <Feather name="globe" size={18} color={activeTheme.colors.primary} />
+                </View>
+              )}
               <View style={styles.content}>
                 <Text style={[styles.activityTitle, { color: activeTheme.colors.textPrimary }]} numberOfLines={1}>
                   {item.translatedText || '—'}
@@ -140,24 +151,31 @@ const styles = StyleSheet.create({
     paddingRight: theme.spacing.lg,
   },
   activityCard: {
-    width: 220,
+    width: 260,
     backgroundColor: theme.colors.card,
     borderRadius: theme.shapes.cardRadius,
-    padding: theme.spacing.lg,
+    padding: theme.spacing.md,
     marginRight: theme.spacing.md,
     borderWidth: 1.5,
     borderColor: theme.colors.border,
     flexDirection: 'row',
     ...theme.shadow.card,
   },
+  thumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    marginRight: theme.spacing.sm,
+    backgroundColor: theme.colors.backgroundLight,
+  },
   iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+    width: 56,
+    height: 56,
+    borderRadius: 12,
     backgroundColor: '#EFF6FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: theme.spacing.md,
+    marginRight: theme.spacing.sm,
     borderWidth: 1,
     borderColor: theme.colors.primary + '30',
   },

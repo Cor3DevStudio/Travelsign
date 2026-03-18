@@ -24,6 +24,8 @@ type TranslationResultScreenProps = {
   };
   capturedImageUri?: string;
   capturedImageBase64?: string;
+  /** scan = from camera flow; library = history / saved / recent */
+  translationEntry?: 'scan' | 'library';
 };
 
 const LANGUAGES = [
@@ -44,6 +46,8 @@ export const TranslationResultScreen: React.FC<TranslationResultScreenProps> = (
   captureLocation,
   capturedImageUri,
   capturedImageBase64,
+  translationEntry = 'scan',
+  cropRect,
 }) => {
   const { theme: activeTheme } = useTheme();
   const [currentLanguage, setCurrentLanguage] = useState<LangCode>(initialLanguage);
@@ -53,6 +57,38 @@ export const TranslationResultScreen: React.FC<TranslationResultScreenProps> = (
   const [isTranslating, setIsTranslating] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  const translationRestoreParams = () => ({
+    originalText,
+    translatedText: currentTranslation || translatedText,
+    initialLanguage: currentLanguage,
+    captureLocation,
+    capturedImageUri,
+    capturedImageBase64,
+    translationEntry,
+    cropRect,
+  });
+
+  const handleBack = () => {
+    const hasImage = !!(capturedImageUri || capturedImageBase64);
+    if (translationEntry === 'library') {
+      if (hasImage) {
+        onNavigate('/scan-preview', {
+          previewImageUri: capturedImageUri,
+          previewImageBase64: capturedImageBase64,
+          reviewOnly: true,
+        });
+      } else {
+        onNavigate('/dashboard');
+      }
+      return;
+    }
+    onNavigate('/scan-preview', {
+      previewImageUri: capturedImageUri,
+      previewImageBase64: capturedImageBase64,
+      reviewOnly: false,
+    });
+  };
 
   useEffect(() => {
     if (!originalText && !translatedText) return;
@@ -78,7 +114,11 @@ export const TranslationResultScreen: React.FC<TranslationResultScreenProps> = (
     setIsSaving(true);
     const result = await addToSaved(
       originalText ?? '',
-      (currentTranslation || translatedText) ?? ''
+      (currentTranslation || translatedText) ?? '',
+      {
+        imageSourceUri: capturedImageUri,
+        imageBase64: capturedImageBase64,
+      }
     );
     setIsSaving(false);
     if (result) {
@@ -103,7 +143,7 @@ export const TranslationResultScreen: React.FC<TranslationResultScreenProps> = (
       <View style={[styles.header, { borderBottomColor: activeTheme.colors.border }]}>
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: activeTheme.colors.backgroundLight }]}
-          onPress={() => onNavigate('/scan-preview')}
+          onPress={handleBack}
         >
           <Feather name="arrow-left" size={24} color={activeTheme.colors.textPrimary} />
         </TouchableOpacity>
@@ -221,7 +261,11 @@ export const TranslationResultScreen: React.FC<TranslationResultScreenProps> = (
           <TouchableOpacity
             style={[styles.primaryButton, { backgroundColor: activeTheme.colors.primary }]}
             onPress={() =>
-              onNavigate('/poi-list', { pois: [], location: captureLocation })
+              onNavigate('/poi-list', {
+                pois: [],
+                location: captureLocation,
+                returnToTranslationParams: translationRestoreParams(),
+              })
             }
           >
             <Feather name="map" size={18} color="#FFFFFF" />

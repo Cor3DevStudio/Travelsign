@@ -95,6 +95,7 @@ function AppContent() {
             onNavigate={handleNavigate}
             previewImageUri={routeParams.previewImageUri}
             previewImageBase64={routeParams.previewImageBase64}
+            reviewOnly={!!routeParams.reviewOnly}
           />
         );
       case '/translation-result':
@@ -107,6 +108,8 @@ function AppContent() {
             captureLocation={routeParams.location}
             capturedImageUri={routeParams.capturedImageUri}
             capturedImageBase64={routeParams.capturedImageBase64}
+            translationEntry={routeParams.translationEntry ?? 'scan'}
+            cropRect={routeParams.cropRect}
           />
         );
       case '/poi-list':
@@ -116,10 +119,20 @@ function AppContent() {
             pois={routeParams.pois || []}
             searchQuery={routeParams.searchQuery || ''}
             captureLocation={routeParams.location}
+            returnToTranslationParams={routeParams.returnToTranslationParams}
+            listReturnRoute={routeParams.listReturnRoute}
+            browseSuggested={!!routeParams.browseSuggested}
           />
         );
       case '/poi-details':
-        return <POIDetailsScreen onNavigate={handleNavigate} poi={routeParams.poi} />;
+        return (
+          <POIDetailsScreen
+            onNavigate={handleNavigate}
+            poi={routeParams.poi}
+            detailsReturnRoute={routeParams.detailsReturnRoute}
+            detailsReturnParams={routeParams.detailsReturnParams}
+          />
+        );
       case '/history':
         return <HistoryScreen onNavigate={handleNavigate} initialTab="history" />;
       case '/saved':

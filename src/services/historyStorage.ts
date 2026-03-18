@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system';
 
 const HISTORY_KEY = '@linguajourney/history';
 const SAVED_KEY = '@linguajourney/saved';
@@ -8,7 +9,36 @@ export type HistoryItem = {
   originalText: string;
   translatedText: string;
   timestamp: number;
+  /** Local file URI of persisted capture (for list thumbnails & preview) */
+  capturedImageStorageUri?: string;
 };
+
+async function persistCaptureImage(
+  id: string,
+  imageSourceUri?: string | null,
+  imageBase64?: string | null
+): Promise<string | undefined> {
+  const dest = `${FileSystem.documentDirectory}capture_${id.replace(/[^a-zA-Z0-9_-]/g, '')}.jpg`;
+  try {
+    if (imageSourceUri && imageSourceUri.startsWith('file')) {
+      const info = await FileSystem.getInfoAsync(imageSourceUri);
+      if (info.exists) {
+        await FileSystem.copyAsync({ from: imageSourceUri, to: dest });
+        return dest;
+      }
+    }
+    if (imageBase64 && imageBase64.length > 100) {
+      const clean = imageBase64.includes(',') ? imageBase64.split(',')[1]! : imageBase64;
+      await FileSystem.writeAsStringAsync(dest, clean.replace(/\s/g, ''), {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      return dest;
+    }
+  } catch (e) {
+    console.warn('historyStorage: could not persist capture image', e);
+  }
+  return undefined;
+}
 
 function formatRelativeTime(ms: number): string {
   const now = Date.now();
@@ -43,15 +73,26 @@ export async function getHistory(): Promise<HistoryItem[]> {
 
 export async function addToHistory(
   originalText: string,
-  translatedText: string
+  translatedText: string,
+  opts?: { imageSourceUri?: string | null; imageBase64?: string | null }
 ): Promise<void> {
   if (!originalText?.trim() && !translatedText?.trim()) return;
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  let capturedImageStorageUri: string | undefined;
+  if (opts?.imageSourceUri || opts?.imageBase64) {
+    capturedImageStorageUri = await persistCaptureImage(
+      id,
+      opts.imageSourceUri,
+      opts.imageBase64
+    );
+  }
   const list = await getHistory();
   const item: HistoryItem = {
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    id,
     originalText: originalText?.trim() || '',
     translatedText: translatedText?.trim() || '',
     timestamp: Date.now(),
+    ...(capturedImageStorageUri ? { capturedImageStorageUri } : {}),
   };
   const next = [item, ...list].slice(0, 200);
   await AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(next));
@@ -82,7 +123,8 @@ export async function getSaved(): Promise<HistoryItem[]> {
 
 export async function addToSaved(
   originalText: string,
-  translatedText: string
+  translatedText: string,
+  opts?: { imageSourceUri?: string | null; imageBase64?: string | null }
 ): Promise<HistoryItem | null> {
   const list = await getSaved();
   const isDuplicate = list.some(
@@ -92,11 +134,22 @@ export async function addToSaved(
   );
   if (isDuplicate) return null;
 
+  const id = `saved-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  let capturedImageStorageUri: string | undefined;
+  if (opts?.imageSourceUri || opts?.imageBase64) {
+    capturedImageStorageUri = await persistCaptureImage(
+      id,
+      opts.imageSourceUri,
+      opts.imageBase64
+    );
+  }
+
   const item: HistoryItem = {
-    id: `saved-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    id,
     originalText: originalText?.trim() || '',
     translatedText: translatedText?.trim() || '',
     timestamp: Date.now(),
+    ...(capturedImageStorageUri ? { capturedImageStorageUri } : {}),
   };
   const next = [item, ...list].slice(0, 200);
   await AsyncStorage.setItem(SAVED_KEY, JSON.stringify(next));

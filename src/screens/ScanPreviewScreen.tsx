@@ -23,12 +23,15 @@ type ScanPreviewScreenProps = {
   onNavigate: (route: string, params?: Record<string, any>) => void;
   previewImageUri?: string;
   previewImageBase64?: string;
+  /** From history/saved: view-only, back goes to dashboard */
+  reviewOnly?: boolean;
 };
 
 export const ScanPreviewScreen: React.FC<ScanPreviewScreenProps> = ({
   onNavigate,
   previewImageUri,
   previewImageBase64,
+  reviewOnly = false,
 }) => {
   const { theme: activeTheme } = useTheme();
   // cropRect values are relative (0–1) inside the preview card
@@ -71,6 +74,7 @@ export const ScanPreviewScreen: React.FC<ScanPreviewScreenProps> = ({
         translatedText: '',
         capturedImageUri: previewImageUri,
         capturedImageBase64: previewImageBase64,
+        translationEntry: 'scan',
       });
       return;
     }
@@ -91,7 +95,10 @@ export const ScanPreviewScreen: React.FC<ScanPreviewScreenProps> = ({
       const targetLang = await getTranslationLanguage();
       const translated = await translateText(detectedText, targetLang);
 
-      await addToHistory(detectedText, translated);
+      await addToHistory(detectedText, translated, {
+        imageSourceUri: previewImageUri,
+        imageBase64: previewImageBase64,
+      });
 
       onNavigate('/translation-result', {
         originalText: detectedText,
@@ -101,6 +108,7 @@ export const ScanPreviewScreen: React.FC<ScanPreviewScreenProps> = ({
         location,
         capturedImageUri: previewImageUri,
         capturedImageBase64: previewImageBase64,
+        translationEntry: 'scan',
       });
     } catch (err: any) {
       console.error('OCR/translate failed', err);
@@ -115,6 +123,7 @@ export const ScanPreviewScreen: React.FC<ScanPreviewScreenProps> = ({
         translatedText: '',
         capturedImageUri: previewImageUri,
         capturedImageBase64: previewImageBase64,
+        translationEntry: 'scan',
       });
     } finally {
       setIsProcessing(false);
@@ -126,16 +135,18 @@ export const ScanPreviewScreen: React.FC<ScanPreviewScreenProps> = ({
       <View style={styles.header}>
         <TouchableOpacity
           style={[styles.backButton, { backgroundColor: activeTheme.colors.backgroundLight }]}
-          onPress={() => onNavigate('/scan')}
+          onPress={() => onNavigate(reviewOnly ? '/dashboard' : '/scan')}
         >
           <Feather name="arrow-left" size={24} color={activeTheme.colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: activeTheme.colors.textPrimary }]}>Preview</Text>
+        <Text style={[styles.headerTitle, { color: activeTheme.colors.textPrimary }]}>
+          {reviewOnly ? 'Capture preview' : 'Preview'}
+        </Text>
         <View style={styles.headerRight} />
       </View>
 
       <View style={styles.content}>
-        <TouchableWithoutFeedback onPress={handleSetCropCenter}>
+        <TouchableWithoutFeedback onPress={reviewOnly ? () => {} : handleSetCropCenter}>
           <View
             style={[styles.previewCard, { backgroundColor: activeTheme.colors.backgroundLight, borderColor: activeTheme.colors.border }]}
             onLayout={e => {
@@ -164,8 +175,8 @@ export const ScanPreviewScreen: React.FC<ScanPreviewScreenProps> = ({
               );
             })()}
 
-            {/* Tap-to-position crop box overlay */}
-            {(previewImageUri || previewImageBase64) && (
+            {/* Tap-to-position crop box (hidden in review-only from history) */}
+            {(previewImageUri || previewImageBase64) && !reviewOnly && (
               <View
                 style={[
                   styles.cropBox,
@@ -180,19 +191,34 @@ export const ScanPreviewScreen: React.FC<ScanPreviewScreenProps> = ({
                 <Text style={styles.cropLabel}>Tap to move this box over text</Text>
               </View>
             )}
+            {reviewOnly && (previewImageUri || previewImageBase64) && (
+              <View style={styles.reviewOnlyBadge}>
+                <Text style={styles.reviewOnlyBadgeText}>Saved capture</Text>
+              </View>
+            )}
           </View>
         </TouchableWithoutFeedback>
 
-        <TouchableOpacity
-          style={[styles.primaryButton, { backgroundColor: activeTheme.colors.primary }]}
-          onPress={handleTranslate}
-          disabled={isProcessing}
-        >
-          <Feather name="globe" size={20} color="#FFFFFF" />
-          <Text style={styles.primaryButtonText}>
-            {isProcessing ? 'Analyzing…' : 'Translate text'}
-          </Text>
-        </TouchableOpacity>
+        {reviewOnly ? (
+          <TouchableOpacity
+            style={[styles.primaryButton, { backgroundColor: activeTheme.colors.primary }]}
+            onPress={() => onNavigate('/dashboard')}
+          >
+            <Feather name="home" size={20} color="#FFFFFF" />
+            <Text style={styles.primaryButtonText}>Back to dashboard</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity
+            style={[styles.primaryButton, { backgroundColor: activeTheme.colors.primary }]}
+            onPress={handleTranslate}
+            disabled={isProcessing}
+          >
+            <Feather name="globe" size={20} color="#FFFFFF" />
+            <Text style={styles.primaryButtonText}>
+              {isProcessing ? 'Analyzing…' : 'Translate text'}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
@@ -280,6 +306,20 @@ const styles = StyleSheet.create({
     marginLeft: theme.spacing.sm,
     fontFamily: theme.typography.semibold,
     fontSize: 16,
+    color: '#FFFFFF',
+  },
+  reviewOnlyBadge: {
+    position: 'absolute',
+    bottom: theme.spacing.md,
+    alignSelf: 'center',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  reviewOnlyBadgeText: {
+    fontFamily: theme.typography.medium,
+    fontSize: 12,
     color: '#FFFFFF',
   },
 });
